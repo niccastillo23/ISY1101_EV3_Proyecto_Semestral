@@ -1,0 +1,59 @@
+name: Pipeline CI/CD Innovatech - EKS
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+        aws-region: us-east-1
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Build, Tag and Push Multi-Architecture Images
+      run: |
+        # Simulación del empaquetado y subida automática usando el estándar AMD64 de AWS
+        docker build --platform linux/amd64 -t 728551823587.dkr.ecr.us-east-1.amazonaws.com/back-despachos:latest ./back-Despachos_SpringBoot
+        docker push 728551823587.dkr.ecr.us-east-1.amazonaws.com/back-despachos:latest
+        
+        docker build --platform linux/amd64 -t 728551823587.dkr.ecr.us-east-1.amazonaws.com/back-ventas:latest ./back-Ventas_SpringBoot
+        docker push 728551823587.dkr.ecr.us-east-1.amazonaws.com/back-ventas:latest
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+        aws-region: us-east-1
+
+    - name: Update Kubeconfig
+      run: |
+        aws eks update-kubeconfig --name cluster-innovatech --region us-east-1
+
+    - name: Deploy to Amazon EKS Cluster
+      run: |
+        kubectl apply -f k8s/
+        kubectl rollout restart deployment/back-despachos -n innovatech
+        kubectl rollout restart deployment/back-ventas -n innovatech
+        kubectl rollout restart deployment/front-despacho -n innovatech
