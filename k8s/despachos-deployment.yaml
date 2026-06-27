@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: back-despachos
+  namespace: innovatech
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: back-despachos
+  template:
+    metadata:
+      labels:
+        app: back-despachos
+    spec:
+      imagePullSecrets:
+      - name: regcred
+      containers:
+      - name: despachos-api
+        image: 728551823587.dkr.ecr.us-east-1.amazonaws.com/back-despachos:latest
+        ports:
+        - containerPort: 8080
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: despachos-service
+  namespace: innovatech
+spec:
+  ports:
+  - port: 8080
+    targetPort: 8080
+  selector:
+    app: back-despachos
